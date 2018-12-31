@@ -60,7 +60,7 @@ public class AllInOne extends AbstractService {
         path("/tweets", () -> {
             before("/*", (q, a) -> logger.info("Received api call to /tweets"));
 
-            get("/:filter", (request, response) -> { // /filter?tag="X"&
+            get("/:filter", (request, response) -> { // /location=Awesomeville&tag=Art&mention=Trees
                 String filter = request.params(":filter");
                 System.out.println("Get request with filter = " + filter);
                 Map<String, String> params = getQueryMap(filter);
