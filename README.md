@@ -44,5 +44,16 @@ curl -X POST \
   
 
 
+bin\windows\zookeeper-server-start.bat config\zookeeper.properties
+
+bin\windows\kafka-server-start.bat config\server.properties
+
+bin\windows\kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 2 --partitions 1 --topic tweeter1
+
+bin\windows\kafka-console-consumer.bat --bootstrap-server localhost:9092 --topic tweeter1 --from-beginning
+
+bin\windows\kafka-topics.bat --describe --zookeeper localhost:2181 --topic tweeter1
+
+
 
 ```
