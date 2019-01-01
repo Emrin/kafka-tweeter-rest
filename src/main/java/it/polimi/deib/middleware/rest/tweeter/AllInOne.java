@@ -14,8 +14,14 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.eclipse.jetty.websocket.api.Session;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
+import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
 import java.util.regex.Pattern;
@@ -27,9 +33,8 @@ public class AllInOne extends AbstractService {
     private static final String topic = "tweets1";
     private static KafkaProducer<String, Resource> producer;
     private static KafkaConsumer<String, Resource> consumer;
-    private Resource currentResource;
+    private static KafkaConsumer<String, Resource> consumerWS;
     private static HashMap<String, Resource> resources = new HashMap<>();
-
 
 
     public static void main(String[] args) {
@@ -52,9 +57,13 @@ public class AllInOne extends AbstractService {
         propsCons.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ResourceDeserializer.class);
         consumer = new KafkaConsumer<>(propsCons);
         consumer.subscribe(Collections.singletonList("tweets1"));
-        consumer.poll(Duration.ofMillis(100));        // get /tweets/filter
-        Set<TopicPartition> assignment = consumer.assignment();
 
+        // Consumer using webSocket
+        consumerWS = new KafkaConsumer<>(propsCons);
+        consumerWS.subscribe(Collections.singletonList("tweets1"));
+        WebSocketHandler wsh = new WebSocketHandler(consumerWS);
+        webSocket("/tweets/:filter", wsh);
+        init();
 
         // REST UTILITY
         path("/tweets", () -> {
@@ -72,22 +81,13 @@ public class AllInOne extends AbstractService {
                 System.out.println(tag);
                 System.out.println(mention);
 
+
                 if (resources.containsKey(filter)) { // if filter is legit
                     return gson.toJson(new Resp(SUCCESS, gson.toJson(resources.get(filter))));
                 }else {
                     return gson.toJson(new Resp(CLIENT_ERROR + 4, "Resource not found"));
                 }
             });
-
-//            get("/:filter", (request, response) -> {
-//                String filter = request.params(":filter"); // location=X, tag=X, mention=X
-//                System.out.print("Get request with filter = " + filter);
-//                if (resources.containsKey(filter)) { // if filter is legit
-//                    return gson.toJson(new Resp(SUCCESS, gson.toJson(resources.get(filter))));
-//                }else {
-//                    return gson.toJson(new Resp(CLIENT_ERROR + 4, "Resource not found"));
-//                }
-//            });
 
             get("", (request, response) -> {
                 System.out.print("get req with no args\n");
@@ -113,14 +113,19 @@ public class AllInOne extends AbstractService {
         });
 
         // Start consumer polling
+        System.out.println("b4");
         Thread t = new Thread(() -> {
+            consumer.poll(Duration.ofMillis(100));
+            Set<TopicPartition> assignment = consumer.assignment();
             consumer.seekToBeginning(assignment);
             while (true) {
                 logger.info("Polling...");
+                wsh.poll();
                 poll();
                 try {
                     Thread.sleep(10000);
                 } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
             }
         });
@@ -166,6 +171,53 @@ public class AllInOne extends AbstractService {
             }
         }
         return map;
+    }
+
+    @WebSocket
+    public static class WebSocketHandler {
+
+        private final KafkaConsumer<String, Resource> consumerWS;
+        List<Session> users = new ArrayList<>();
+
+        public WebSocketHandler(KafkaConsumer<String, Resource> consumerWS) {
+            this.consumerWS = consumerWS;
+        }
+
+        public void poll() {
+            ConsumerRecords<String, Resource> tweets = this.consumerWS.poll(Duration.ofMillis(500));
+            System.out.println("Called WS poll");
+            tweets.forEach(pr -> this.broadcast(gson.toJson(pr.value())));
+        }
+
+        @OnWebSocketConnect
+        public void onConnect(Session user) throws Exception {
+            users.add(user);
+            logger.info("A user joined the chat");
+        }
+
+        @OnWebSocketClose
+        public void onClose(Session user, int statusCode, String reason) {
+            users.remove(user);
+            logger.info("A user left the chat");
+        }
+
+        @OnWebSocketMessage
+        public void onMessage(Session user, String message) {
+            logger.info("Session user: "+user.toString());
+            logger.info("Websocket message: "+message);
+        }
+
+        private void broadcast(String message) {
+            logger.info("Broadcast called");
+            System.out.println("broadcast message: "+message); // also send response 200
+            users.stream().filter(Session::isOpen).forEach(session -> {
+                try {
+                    session.getRemote().sendString(message);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
+        }
     }
 }
 

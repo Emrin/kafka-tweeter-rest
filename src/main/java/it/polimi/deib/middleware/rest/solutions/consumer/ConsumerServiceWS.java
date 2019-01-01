@@ -78,7 +78,6 @@ public class ConsumerServiceWS extends AbstractService {
         }
 
         public void poll() {
-            //TODO set a join, requires polling from two topics
             ConsumerRecords<String, Resource> orders = this.consumer.poll(Duration.ofMillis(500));
             orders.forEach(pr -> this.broadcast(gson.toJson(pr.value())));
         }
@@ -97,9 +96,12 @@ public class ConsumerServiceWS extends AbstractService {
 
         @OnWebSocketMessage
         public void onMessage(Session user, String message) {
+            logger.info("Session user: "+user.toString());
+            logger.info("Websocket message: "+message);
         }
 
         private void broadcast(String message) {
+            logger.info("Broadcast called");
             users.stream().filter(Session::isOpen).forEach(session -> {
                 try {
                     session.getRemote().sendString(message);
