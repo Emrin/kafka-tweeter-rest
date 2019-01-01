@@ -177,7 +177,7 @@ public class AllInOne extends AbstractService {
     public static class WebSocketHandler {
 
         private final KafkaConsumer<String, Resource> consumerWS;
-        List<Session> users = new ArrayList<>();
+        List<Session> users = new ArrayList<>(); //move this out
 
         public WebSocketHandler(KafkaConsumer<String, Resource> consumerWS) {
             this.consumerWS = consumerWS;

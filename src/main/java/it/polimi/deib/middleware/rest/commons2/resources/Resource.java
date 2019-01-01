@@ -3,13 +3,20 @@ package it.polimi.deib.middleware.rest.commons2.resources;
 
 import java.util.List;
 
-public class Resource {
+public class Resource { // a tweet
 
     private String id;
     private String author;
     private String location;
     private List<String> tags;
     private List<String> mentions;
+
+    public Resource(String author, String location, List<String> tags, List<String> mentions) {
+        this.author = author;
+        this.location = location;
+        this.tags = tags;
+        this.mentions = mentions;
+    }
 
     public Resource() {
     }
