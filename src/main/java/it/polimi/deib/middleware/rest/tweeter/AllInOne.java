@@ -181,6 +181,7 @@ public class AllInOne extends AbstractService {
 
         public WebSocketHandler(KafkaConsumer<String, Resource> consumerWS) {
             this.consumerWS = consumerWS;
+            System.out.println("webSocketHandler constructor triggered");
         }
 
         public void poll() {
