@@ -1,7 +1,10 @@
 # Kafka Rest Tweeter Homework Repository for the MiddleWare Course
 
 
-Requests for unix, for windows use postman app.
+Requests: below for unix. For windows use postman app.
+
+For websocket testing consider Chrome plugin Smart Websocket Client.
+
 
 ```bash
 

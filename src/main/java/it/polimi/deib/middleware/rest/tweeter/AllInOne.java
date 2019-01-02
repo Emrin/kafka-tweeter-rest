@@ -62,7 +62,7 @@ public class AllInOne extends AbstractService {
         consumerWS = new KafkaConsumer<>(propsCons);
         consumerWS.subscribe(Collections.singletonList("tweets1"));
         WebSocketHandler wsh = new WebSocketHandler(consumerWS);
-        webSocket("/tweets/:filter", wsh);
+        webSocket("/ws", wsh); //init it here, when post with filter, pass the filter to the ws.
         init();
 
         // REST UTILITY
@@ -89,16 +89,33 @@ public class AllInOne extends AbstractService {
                 }
             });
 
+            // Websocket call
+            post("/:filter", (request, response) -> { // /location=Awesomeville&tag=Art&mention=Trees
+                System.out.println("Post with filter -> launch websocket.");
+                String filter = request.params(":filter");
+                Map<String, String> params = getQueryMap(filter);
+                System.out.println("queryParamsMap.keys() = "+params.keySet() + "\nqueryParamsMap.values() = "+params.values());
+                String location = (String)params.get("location");
+                String tag = (String)params.get("tag");
+                String mention = (String)params.get("mention");
+                System.out.println(location);
+                System.out.println(tag);
+                System.out.println(mention);
+                wsh.Construct(location, tag, mention);
+                System.out.println("Launched websocket. Redirecting response.");
+                response.redirect("ws://localhost:4242/tweets");
+                return response;
+//                return gson.toJson(new Resp(SUCCESS, "Starting websocket."));
+            });
+
             get("", (request, response) -> {
                 System.out.print("get req with no args\n");
                 response.type("application/json");
                 response.status(SUCCESS);
-//                return gson.toJson(new Resp(SUCCESS, gson.toJson(resources.values())));
                 return gson.toJson(new Resp(SUCCESS, gson.toJson(resources.values())));
             });
 
             post("", (request, response) -> { // user posted a new tweet
-
 
                 response.type("application/json");
                 response.status(SUCCESS);
@@ -113,15 +130,14 @@ public class AllInOne extends AbstractService {
         });
 
         // Start consumer polling
-        System.out.println("b4");
         Thread t = new Thread(() -> {
             consumer.poll(Duration.ofMillis(100));
             Set<TopicPartition> assignment = consumer.assignment();
             consumer.seekToBeginning(assignment);
             while (true) {
                 logger.info("Polling...");
-                wsh.poll();
                 poll();
+                wsh.poll();
                 try {
                     Thread.sleep(10000);
                 } catch (InterruptedException e) {
@@ -178,6 +194,15 @@ public class AllInOne extends AbstractService {
 
         private final KafkaConsumer<String, Resource> consumerWS;
         List<Session> users = new ArrayList<>(); //move this out
+
+        private String location, tag, mention;
+
+        // constructor
+        public void Construct(String location, String tag, String mention){
+            this.location = location;
+            this.tag = tag;
+            this.mention = mention;
+        }
 
         public WebSocketHandler(KafkaConsumer<String, Resource> consumerWS) {
             this.consumerWS = consumerWS;

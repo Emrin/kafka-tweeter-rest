@@ -11,7 +11,7 @@ public class Resource { // a tweet
     private List<String> tags;
     private List<String> mentions;
 
-    public Resource(String author, String location, List<String> tags, List<String> mentions) {
+    public void Resource(String author, String location, List<String> tags, List<String> mentions) {
         this.author = author;
         this.location = location;
         this.tags = tags;

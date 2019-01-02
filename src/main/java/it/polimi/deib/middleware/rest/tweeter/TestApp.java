@@ -8,14 +8,18 @@ public class TestApp {
     public static void main(String[] args) {
         try {
             // open websocket
-            final WebsocketClientEndpoint clientEndPoint = new WebsocketClientEndpoint(new URI("localhost:10440/websocket/okcoinapi"));
-
+            System.out.println("trying to open websocket for client side tho");
+            final WebsocketClientEndpoint clientEndPoint = new WebsocketClientEndpoint(
+                    new URI("ws://localhost:4242/"));
+            System.out.println("is it open");
             // add listener
-            clientEndPoint.addMessageHandler(new WebsocketClientEndpoint.MessageHandler() {
-                public void handleMessage(String message) {
-                    System.out.println(message);
-                }
-            });
+//            clientEndPoint.addMessageHandler(System.out::println);
+            clientEndPoint.addMessageHandler(message -> System.out.println(message));
+//            clientEndPoint.addMessageHandler(new WebsocketClientEndpoint.MessageHandler() {
+//                public void handleMessage(String message) {
+//                    System.out.println(message);
+//                }
+//            });
 
             // send message to websocket
             clientEndPoint.sendMessage("{'event':'addChannel','channel':'ok_btccny_ticker'}");

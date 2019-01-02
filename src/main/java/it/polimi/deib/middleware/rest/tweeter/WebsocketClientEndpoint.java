@@ -21,6 +21,7 @@ public class WebsocketClientEndpoint {
 
     public WebsocketClientEndpoint(URI endpointURI) {
         try {
+            System.out.println("ws client endpoint 1");
             WebSocketContainer container = ContainerProvider.getWebSocketContainer();
             container.connectToServer(this, endpointURI);
         } catch (Exception e) {
@@ -78,6 +79,7 @@ public class WebsocketClientEndpoint {
      * @param message
      */
     public void sendMessage(String message) {
+        System.out.println("sendMessage()");
         this.userSession.getAsyncRemote().sendText(message);
     }
 
