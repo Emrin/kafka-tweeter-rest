@@ -1,9 +1,9 @@
-package it.polimi.deib.middleware.rest.commons2.resources;
+package tweeter.resources;
 
 
 import java.util.List;
 
-public class Resource { // a tweet
+public class Tweet {
 
     private String id;
     private String author;
@@ -11,14 +11,14 @@ public class Resource { // a tweet
     private List<String> tags;
     private List<String> mentions;
 
-    public Resource(String author, String location, List<String> tags, List<String> mentions) {
+    public Tweet(String author, String location, List<String> tags, List<String> mentions) {
         this.author = author;
         this.location = location;
         this.tags = tags;
         this.mentions = mentions;
     }
 
-    public Resource() {
+    public Tweet() {
     }
 
 
@@ -62,8 +62,10 @@ public class Resource { // a tweet
         this.mentions = mentions;
     }
 
+    @Override
     public String toString() {
         return "id = "+id+" ; author = "+author+" ; location = "+location+" ; tags = "
                 + tags + " ; mentions = "+mentions;
     }
+
 }

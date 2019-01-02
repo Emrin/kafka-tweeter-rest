@@ -41,7 +41,7 @@ public class ProducerService extends AbstractService {
                     String body = request.body();
                     if (body != null && !body.isEmpty()) {
                         String id = place(gson.fromJson(body, Resource.class));
-                        return gson.toJson(new Resp(SUCCESS, "Resource Created with id [" + id + "]"));
+                        return gson.toJson(new Resp(SUCCESS, "Tweet Created with id [" + id + "]"));
                     } else
                         return gson.toJson(new Resp(400, "Bad Request"));
                 });

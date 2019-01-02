@@ -73,7 +73,7 @@ public class ProducerService extends AbstractService {
                     return gson.toJson(new Resp(SUCCESS, gson.toJson(resources.get(filter))));
 
                 }
-                return gson.toJson(new Resp(CLIENT_ERROR + 4, "Resource not found"));
+                return gson.toJson(new Resp(CLIENT_ERROR + 4, "Tweet not found"));
             });
 
             post("", (request, response) -> {
@@ -82,7 +82,7 @@ public class ProducerService extends AbstractService {
                 String body = request.body();
                 if (body != null && !body.isEmpty()) { // optionally regex type checking
                     String id = tweet(gson.fromJson(body, Resource.class));
-                    return gson.toJson(new Resp(SUCCESS, "Resource Created with id [" + id + "]"));
+                    return gson.toJson(new Resp(SUCCESS, "Tweet Created with id [" + id + "]"));
                 } else
                     return gson.toJson(new Resp(400, "Bad Request"));
             });

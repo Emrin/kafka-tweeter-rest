@@ -51,7 +51,7 @@ public class ConsumerService extends AbstractService{
                     return gson.toJson(new Resp(SUCCESS, gson.toJson(resources.get(filter))));
 
                 }
-                return gson.toJson(new Resp(CLIENT_ERROR + 4, "Resource not found"));
+                return gson.toJson(new Resp(CLIENT_ERROR + 4, "Tweet not found"));
             });
 
             get("", (request, response) -> {

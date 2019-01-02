@@ -50,7 +50,7 @@ public class ConsumerService extends AbstractService {
                         return gson.toJson(new Resp(SUCCESS, gson.toJson(resources.get(id))));
 
                     }
-                    return gson.toJson(new Resp(CLIENT_ERROR + 4, "Resource not found"));
+                    return gson.toJson(new Resp(CLIENT_ERROR + 4, "Tweet not found"));
                 });
 
                 get("", (request, response) -> {
@@ -63,12 +63,12 @@ public class ConsumerService extends AbstractService {
                     String id = request.params(":id");
                     Resource remove = resources.remove(id);
                     if (remove != null) {
-                        return gson.toJson(new Resp(SUCCESS, "Resource [" +
+                        return gson.toJson(new Resp(SUCCESS, "Tweet [" +
                                 id +
                                 "] successfully removed."));
                     }
 
-                    return gson.toJson(new Resp(CLIENT_ERROR + 4, "Resource not found"));
+                    return gson.toJson(new Resp(CLIENT_ERROR + 4, "Tweet not found"));
                 });
 
             });

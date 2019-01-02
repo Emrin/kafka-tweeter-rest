@@ -35,6 +35,7 @@ public class AllInOne extends AbstractService {
     private static KafkaConsumer<String, Resource> consumer;
     private static KafkaConsumer<String, Resource> consumerWS;
     private static HashMap<String, Resource> resources = new HashMap<>();
+    private static List<Session> users = new ArrayList<>();
 
 
     public static void main(String[] args) {
@@ -85,7 +86,7 @@ public class AllInOne extends AbstractService {
                 if (resources.containsKey(filter)) { // if filter is legit
                     return gson.toJson(new Resp(SUCCESS, gson.toJson(resources.get(filter))));
                 }else {
-                    return gson.toJson(new Resp(CLIENT_ERROR + 4, "Resource not found"));
+                    return gson.toJson(new Resp(CLIENT_ERROR + 4, "Tweet not found"));
                 }
             });
 
@@ -122,7 +123,7 @@ public class AllInOne extends AbstractService {
                 String body = request.body();
                 if (body != null && !body.isEmpty()) { // optionally regex type checking
                     String id = tweet(gson.fromJson(body, Resource.class));
-                    return gson.toJson(new Resp(SUCCESS, "Resource Created with id [" + id + "]"));
+                    return gson.toJson(new Resp(SUCCESS, "Tweet Created with id [" + id + "]"));
                 } else
                     return gson.toJson(new Resp(400, "Bad Request"));
             });
@@ -132,8 +133,10 @@ public class AllInOne extends AbstractService {
         // Start consumer polling
         Thread t = new Thread(() -> {
             consumer.poll(Duration.ofMillis(100));
+            consumerWS.poll(Duration.ofMillis(100));
             Set<TopicPartition> assignment = consumer.assignment();
             consumer.seekToBeginning(assignment);
+            consumerWS.seekToBeginning(assignment);
             while (true) {
                 logger.info("Polling...");
                 poll();
@@ -193,7 +196,6 @@ public class AllInOne extends AbstractService {
     public static class WebSocketHandler {
 
         private final KafkaConsumer<String, Resource> consumerWS;
-        List<Session> users = new ArrayList<>(); //move this out
 
         private String location, tag, mention;
 
