@@ -7,9 +7,9 @@ public class Tweet {
 
     private String id;
     private String author;
-    private String location;
-    private List<String> tags;
-    private List<String> mentions;
+    private String location; // query
+    private List<String> tags; // query
+    private List<String> mentions; // query
 
     public Tweet(String author, String location, List<String> tags, List<String> mentions) {
         this.author = author;
@@ -66,6 +66,18 @@ public class Tweet {
     public String toString() {
         return "id = "+id+" ; author = "+author+" ; location = "+location+" ; tags = "
                 + tags + " ; mentions = "+mentions;
+    }
+
+    public Boolean filterLoc(String filter) {
+        return location.toLowerCase().contains(filter.toLowerCase());
+    }
+
+    public Boolean filterTag(String filter) {
+        return String.join(",", tags).toLowerCase().contains(filter.toLowerCase());
+    }
+
+    public Boolean filterMention(String filter) {
+        return String.join(",", mentions).toLowerCase().contains(filter.toLowerCase());
     }
 
 }

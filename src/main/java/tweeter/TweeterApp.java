@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import spark.Session;
 import tweeter.api.commons.AbstractService;
 import tweeter.api.commons.Resp;
+import tweeter.dao.Consumer;
 import tweeter.dao.Producer;
 import tweeter.dao.WebSocketHandler;
 import tweeter.resources.Tweet;
@@ -23,7 +24,6 @@ import static spark.Spark.*;
 public class TweeterApp extends AbstractService {
 
     static Boolean called = false;
-//    private int iter = 0;
 
     public static void main(String[] args) {
 
@@ -37,6 +37,9 @@ public class TweeterApp extends AbstractService {
 
         // Producer
         Producer producer = new Producer(topic);
+
+        // Consumer
+        Consumer consumer = new Consumer(topic);
 
         // ConsumerWS
         Properties props = new Properties();
@@ -53,10 +56,28 @@ public class TweeterApp extends AbstractService {
         init();
 
 
-
-
         path("/tweets", () -> {
             before("/*", (q, a) -> logger.info("Received api call to /tweets"));
+
+            // User GET request.
+            get("/:filter", (request, response) -> { // /location=Awesomeville&tag=Art&mention=Trees
+                System.out.println("Get request with filter.");
+                Map<String, String> params = getQueryMap(request.params(":filter"));
+                String location = (String)params.get("location");
+                String tag = (String)params.get("tag");
+                String mention = (String)params.get("mention");
+                System.out.println("queryParamsMap.keys() = "+params.keySet() + "\nqueryParamsMap.values() = "+params.values());
+                System.out.println("loc : "+location+" , tag : "+tag+" , mention : "+mention);
+
+                // Get list of tweets that have matching args.
+                List<Tweet> matches = matchmaker(tweets, location, tag, mention);
+
+                if (!matches.isEmpty()) {
+                    return gson.toJson(new Resp(SUCCESS, gson.toJson(matches)));
+                }else {
+                    return gson.toJson(new Resp(CLIENT_ERROR + 4, "Tweet not found"));
+                }
+            });
 
             // User posts a tweet.
             post("", (request, response) -> { // User posted a new tweet
@@ -66,10 +87,7 @@ public class TweeterApp extends AbstractService {
                 try {
                     if (body != null && !body.isEmpty()) { // maybe check form with regex
                         Tweet thisTweet = producer.place(gson.fromJson(request.body(), Tweet.class));
-//                    tweets.put(String.valueOf(tweets.size()), gson.fromJson(request.body(), Tweet.class));
-//                    printMap(tweets);
                         return gson.toJson(new Resp(SUCCESS, "Tweet Created: [" + thisTweet.toString() + "]"));
-//                    return gson.toJson(new Resp(SUCCESS, "Tweet Created: [" + printMap(tweets);+ "]"));
                     } else
                         return gson.toJson(new Resp(400, "Bad Request"));
                 } catch (Exception e) {
@@ -78,7 +96,7 @@ public class TweeterApp extends AbstractService {
                 }
             });
 
-            // Websocket call: Changes filter of the web socket.
+            // Websocket call: Changes the filter of the web socket.
             post("/:filter", (request, response) -> { // /location=Awesomeville&tag=Art&mention=Trees
                 System.out.println("Post request with filter -> set filter to web socket handler.");
                 Map<String, String> params = getQueryMap(request.params(":filter"));
@@ -123,14 +141,16 @@ public class TweeterApp extends AbstractService {
 
     }
 
-
-    public static void printMap(Map mp) {
-        Iterator it = mp.entrySet().iterator();
-        while (it.hasNext()) {
-            Map.Entry pair = (Map.Entry)it.next();
-            System.out.println("pair.getKey(): "+ pair.getKey() +" pair.getValue(): " + pair.getValue()); // key is given in value's id
-            it.remove(); // avoids a ConcurrentModificationException
+    // Iterate over all tweets and if one of them has a matching arg, add it to the result.
+    private static List<Tweet> matchmaker(HashMap<String, Tweet> tweets, String location,
+                                    String tag, String mention) {
+        List<Tweet> result = new ArrayList<Tweet>();
+        for (int i = 0; i < tweets.size(); i++){
+            if (tweets.get(i).filterLoc(location) || tweets.get(i).filterTag(tag) || tweets.get(i).filterTag(mention)){
+                result.add(tweets.get(i));
+            }
         }
+        return result;
     }
 
     private static Map<String, String> getQueryMap(String query)
@@ -148,3 +168,5 @@ public class TweeterApp extends AbstractService {
     }
 
 }
+
+
