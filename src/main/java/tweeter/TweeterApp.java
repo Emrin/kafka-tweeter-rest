@@ -31,6 +31,7 @@ public class TweeterApp extends AbstractService {
         String topic = "tweets1";
         int portNum = 4242;
         HashMap<String, Tweet> tweets = new HashMap<>();
+        List<String> tweet_ids = new ArrayList<>();
         List<Session> users = new ArrayList<>();
 
         port(portNum);
@@ -70,7 +71,9 @@ public class TweeterApp extends AbstractService {
                 System.out.println("loc : "+location+" , tag : "+tag+" , mention : "+mention);
 
                 // Get list of tweets that have matching args.
-                List<Tweet> matches = matchmaker(tweets, location, tag, mention);
+                List<Tweet> matches = matchmaker(tweets, tweet_ids, location, tag, mention);
+                System.out.println("Length of matches = "+matches.size());
+                for(Tweet tweet : matches){System.out.println(tweet.toString());}
 
                 if (!matches.isEmpty()) {
                     return gson.toJson(new Resp(SUCCESS, gson.toJson(matches)));
@@ -87,6 +90,8 @@ public class TweeterApp extends AbstractService {
                 try {
                     if (body != null && !body.isEmpty()) { // maybe check form with regex
                         Tweet thisTweet = producer.place(gson.fromJson(request.body(), Tweet.class));
+                        tweets.put(thisTweet.getId(), thisTweet);
+                        tweet_ids.add(thisTweet.getId());
                         return gson.toJson(new Resp(SUCCESS, "Tweet Created: [" + thisTweet.toString() + "]"));
                     } else
                         return gson.toJson(new Resp(400, "Bad Request"));
@@ -142,14 +147,22 @@ public class TweeterApp extends AbstractService {
     }
 
     // Iterate over all tweets and if one of them has a matching arg, add it to the result.
-    private static List<Tweet> matchmaker(HashMap<String, Tweet> tweets, String location,
+    private static List<Tweet> matchmaker(HashMap<String, Tweet> tweets, List<String> tweet_ids, String location,
                                     String tag, String mention) {
         List<Tweet> result = new ArrayList<Tweet>();
-        for (int i = 0; i < tweets.size(); i++){
-            if (tweets.get(i).filterLoc(location) || tweets.get(i).filterTag(tag) || tweets.get(i).filterTag(mention)){
-                result.add(tweets.get(i));
+        if (!tweets.isEmpty()) {
+//            System.out.println("0");
+            for (int i = 0; i < tweets.size(); i++) {
+//                System.out.println("1"); // pb here is to get uuid of tweets and say tweets.get(uuid)
+                if (tweets.get(tweet_ids.get(i)).filterLoc(location) || tweets.get(tweet_ids.get(i)).filterTag(tag) ||
+                        tweets.get(tweet_ids.get(i)).filterMention(mention)) {
+                    result.add(tweets.get(tweet_ids.get(i))); // spaghetti = very much
+                    System.out.println("Added value of id = " + i);
+                }
+//                System.out.println("2");
             }
         }
+        System.out.println("Size of returned result in matchmaker = "+result.size());
         return result;
     }
 
