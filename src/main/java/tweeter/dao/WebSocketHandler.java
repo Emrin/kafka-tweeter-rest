@@ -19,23 +19,41 @@ import java.util.List;
 
 
 @WebSocket
-public class ConsumerWS {
-    private Logger logger = LoggerFactory.getLogger(ConsumerWS.class);
+public class WebSocketHandler {
+    private Logger logger = LoggerFactory.getLogger(WebSocketHandler.class);
     private Gson gson = new Gson();
     private String location, tag, mention; // filters
     private final KafkaConsumer<String, Tweet> consumerWS;
     private static List<Session> users = new ArrayList<>();
 
-    public ConsumerWS(KafkaConsumer<String, Tweet> consumerWS, String location, String tag, String mention) {
+    public WebSocketHandler(KafkaConsumer<String, Tweet> consumerWS) {
         this.consumerWS = consumerWS;
+    }
+
+    // Getters and setters
+    public String getLocation() {
+        return location;
+    }
+    public void setLocation(String location) {
         this.location = location;
+    }
+
+    public String getTag() {
+        return tag;
+    }
+    public void setTag(String tag) {
         this.tag = tag;
+    }
+
+    public String getMention() {
+        return mention;
+    }
+    public void setMention(String mention) {
         this.mention = mention;
     }
 
     public void poll() {
         ConsumerRecords<String, Tweet> tweets = this.consumerWS.poll(Duration.ofMillis(500));
-        logger.info("Called WS poll");
         tweets.forEach(t -> this.broadcast(gson.toJson(t.value())));
     }
 
