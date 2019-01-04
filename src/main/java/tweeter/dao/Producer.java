@@ -4,6 +4,8 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import tweeter.resources.Tweet;
 import tweeter.resources.serizalization.TweetSerializer;
 
@@ -12,6 +14,7 @@ import java.util.UUID;
 
 public class Producer {
     // Args
+    private Logger logger = LoggerFactory.getLogger(Producer.class);
     private KafkaProducer<String, Tweet> producer;
     private final String topic;
 
@@ -32,7 +35,7 @@ public class Producer {
         tweet.setId(s);
         ProducerRecord<String, Tweet> record = new ProducerRecord<>(this.topic, s, tweet); // topic, id, object
         this.producer.send(record);
-        System.out.println("Created new record.");
+        logger.info("Created new record.");
         return tweet;
     }
 

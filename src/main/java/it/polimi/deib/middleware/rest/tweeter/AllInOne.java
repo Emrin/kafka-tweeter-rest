@@ -24,7 +24,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
-import java.util.regex.Pattern;
 
 import static spark.Spark.*;
 
@@ -166,7 +165,6 @@ public class AllInOne extends AbstractService {
         ConsumerRecords<String, Resource> newTweets = consumer.poll(Duration.ofMillis(500));
         newTweets.forEach(pr -> resources.put(pr.key(), pr.value()));
         System.out.println(resources.values());
-//        printMap(resources);
     }
 
     public static void printMap(Map mp) {

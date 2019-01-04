@@ -49,7 +49,6 @@ public class TweeterApp extends AbstractService {
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, TweetDeserializer.class);
-
         KafkaConsumer<String, Tweet> consumerWS = new KafkaConsumer<>(props);
         consumerWS.subscribe(Collections.singletonList(topic));
         WebSocketHandler wsh = new WebSocketHandler(consumerWS);
@@ -59,28 +58,6 @@ public class TweeterApp extends AbstractService {
 
         path("/tweets", () -> {
             before("/*", (q, a) -> logger.info("Received api call to /tweets"));
-
-            // User GET request.
-            get("/:filter", (request, response) -> { // /location=Awesomeville&tag=Art&mention=Trees
-                System.out.println("Get request with filter.");
-                Map<String, String> params = getQueryMap(request.params(":filter"));
-                String location = (String)params.get("location");
-                String tag = (String)params.get("tag");
-                String mention = (String)params.get("mention");
-                System.out.println("queryParamsMap.keys() = "+params.keySet() + "\nqueryParamsMap.values() = "+params.values());
-                System.out.println("loc : "+location+" , tag : "+tag+" , mention : "+mention);
-
-                // Get list of tweets that have matching args.
-                List<Tweet> matches = matchmaker(tweets, tweet_ids, location, tag, mention);
-                System.out.println("Length of matches = "+matches.size());
-                for(Tweet tweet : matches){System.out.println(tweet.toString());}
-
-                if (!matches.isEmpty()) {
-                    return gson.toJson(new Resp(SUCCESS, gson.toJson(matches)));
-                }else {
-                    return gson.toJson(new Resp(CLIENT_ERROR + 4, "Tweet not found"));
-                }
-            });
 
             // User posts a tweet.
             post("", (request, response) -> { // User posted a new tweet
@@ -96,48 +73,70 @@ public class TweeterApp extends AbstractService {
                     } else
                         return gson.toJson(new Resp(400, "Bad Request"));
                 } catch (Exception e) {
-                    System.out.println("Exception : "+e.toString());
+                    e.printStackTrace();
                     return gson.toJson(new Resp(400, "Bad Request"));
+                }
+            });
+
+            // User GET request.
+            get("/:filter", (request, response) -> { // /location=Awesomeville&tag=Art&mention=Trees
+                logger.info("Get request with filter.");
+                Map<String, String> params = getQueryMap(request.params(":filter"));
+                String location = (String)params.get("location");
+                String tag = (String)params.get("tag");
+                String mention = (String)params.get("mention");
+                logger.info("queryParamsMap.keys() = "+params.keySet() + "\nqueryParamsMap.values() = "+params.values());
+                logger.info("loc : "+location+" , tag : "+tag+" , mention : "+mention);
+
+                // Get list of tweets that have matching args.
+                List<Tweet> matches = matchmaker(tweets, tweet_ids, location, tag, mention);
+                logger.info("Length of matches = "+matches.size());
+                for(Tweet tweet : matches){System.out.println(tweet.toString());}
+
+                if (!matches.isEmpty()) {
+                    return gson.toJson(new Resp(SUCCESS, gson.toJson(matches)));
+                }else {
+                    return gson.toJson(new Resp(CLIENT_ERROR + 4, "Tweet not found"));
                 }
             });
 
             // Websocket call: Changes the filter of the web socket.
             post("/:filter", (request, response) -> { // /location=Awesomeville&tag=Art&mention=Trees
-                System.out.println("Post request with filter -> set filter to web socket handler.");
+                logger.info("Post request with filter -> set filter to web socket handler.");
                 Map<String, String> params = getQueryMap(request.params(":filter"));
                 String location = (String)params.get("location");
                 String tag = (String)params.get("tag");
                 String mention = (String)params.get("mention");
-                System.out.println("queryParamsMap.keys() = "+params.keySet() + "\nqueryParamsMap.values() = "+params.values());
-                System.out.println("loc : "+location+" , tag : "+tag+" , mention : "+mention);
+                logger.info("queryParamsMap.keys() = "+params.keySet() + "\nqueryParamsMap.values() = "+params.values());
+                logger.info("loc : "+location+" , tag : "+tag+" , mention : "+mention);
                 wsh.setLocation(location);
                 wsh.setTag(tag);
                 wsh.setMention(mention);
 //                init();
-
-                Thread t = new Thread(() -> {
-                    consumerWS.poll(Duration.ofMillis(100));
-                    Set<TopicPartition> assignment = consumerWS.assignment();
-                    consumerWS.seekToBeginning(assignment);
-
-                    while (true) {
-                        logger.info("WS polling...");
-                        wsh.poll();
-                        try {
-                            Thread.sleep(10000);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
+                if(!called) {
+                    Thread t = new Thread(() -> {
+                        consumerWS.poll(Duration.ofMillis(100));
+                        Set<TopicPartition> assignment = consumerWS.assignment();
+                        consumerWS.seekToBeginning(assignment);
+                        while (true) {
+                            logger.info("WS polling...");
+                            wsh.poll();
+                            try {
+                                Thread.sleep(10000);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
                         }
-                    }
-                });
-                if(!called) {t.start();}
+                    });
+                    t.start();
+                }
                 called = true;
 
-                System.out.println("Launched websocket with filters, location : "+wsh.getLocation()+
+                logger.info("Launched websocket with filters, location : "+wsh.getLocation()+
                         " , tag : "+wsh.getTag()+ " , mention : "+wsh.getMention() +". Redirecting response.");
-                response.redirect("ws://localhost:4242/ws");
-                return response;
-//                return gson.toJson(new Resp(SUCCESS, "Starting websocket."));
+//                response.redirect("ws://localhost:4242/ws");
+//                return response;
+                return gson.toJson(new Resp(SUCCESS, "Starting websocket. Visit ws://localhost:4242/ws"));
             });
 
 
@@ -151,18 +150,15 @@ public class TweeterApp extends AbstractService {
                                     String tag, String mention) {
         List<Tweet> result = new ArrayList<Tweet>();
         if (!tweets.isEmpty()) {
-//            System.out.println("0");
             for (int i = 0; i < tweets.size(); i++) {
-//                System.out.println("1"); // pb here is to get uuid of tweets and say tweets.get(uuid)
                 if (tweets.get(tweet_ids.get(i)).filterLoc(location) || tweets.get(tweet_ids.get(i)).filterTag(tag) ||
                         tweets.get(tweet_ids.get(i)).filterMention(mention)) {
                     result.add(tweets.get(tweet_ids.get(i))); // spaghetti = very much
-                    System.out.println("Added value of id = " + i);
+                    logger.info("Found filter matching to tweet with id = " + i);
                 }
-//                System.out.println("2");
             }
         }
-        System.out.println("Size of returned result in matchmaker = "+result.size());
+        logger.info("Total size of matching tweets = "+result.size());
         return result;
     }
 
