@@ -25,14 +25,13 @@ import java.util.concurrent.ConcurrentHashMap;
 public class WebSocketHandler {
     private Logger logger = LoggerFactory.getLogger(WebSocketHandler.class);
     private Gson gson = new Gson();
+    private HashMap<String, Tweet> tweets = new HashMap<>();
+    List<String> tweet_ids = new ArrayList<>();
     private String location, tag, mention; // filters
     private final KafkaConsumer<String, Tweet> consumerWS;
     private static List<Session> users = new ArrayList<>();
-
-    // this map is shared between sessions and threads, so it needs to be thread-safe (http://stackoverflow.com/a/2688817)
-    static Map<Session, String> userUsernameMap = new ConcurrentHashMap<>();
-    static int nextUserNumber = 1; //Assign to username for next connecting user
-    private String sender, msg;
+    private static List<List<String>> filters = new ArrayList<>();
+    static Map<Session, List<String>> userFilterMap = new ConcurrentHashMap<>(); // map users to their filters
 
     public WebSocketHandler(KafkaConsumer<String, Tweet> consumerWS) {
         this.consumerWS = consumerWS;
@@ -62,41 +61,42 @@ public class WebSocketHandler {
 
     public void poll() {
         ConsumerRecords<String, Tweet> tweets = this.consumerWS.poll(Duration.ofMillis(500));
-        tweets.forEach(t -> this.broadcast(gson.toJson(t.value())));
+        tweets.forEach(t -> this.broadcast(t.value())); // value is tweet
         // broadcast
     }
 
     @OnWebSocketConnect
     public void onConnect(Session user) throws Exception {
-        users.add(user);
-        logger.info("A user joined the chat");
-
-        String username = "User" + nextUserNumber++;
-        userUsernameMap.put(user, username);
+        if (users.contains(user)){
+            logger.info("A user rejoined the chat");
+            // Serve user what hes looking for
+            List<Tweet> serve = matchmaker(tweets, tweet_ids, location, tag, mention);
+            serve.forEach(this::broadcast);
+        } else {
+            users.add(user);
+            logger.info("A user joined the chat");
+        }
     }
 
     @OnWebSocketClose
     public void onClose(Session user, int statusCode, String reason) {
         users.remove(user);
         logger.info("A user left the chat");
-
-        String username = userUsernameMap.get(user);
-        userUsernameMap.remove(user);
     }
 
     @OnWebSocketMessage
     public void onMessage(Session user, String message) {
         logger.info("Session user: "+user.toString());
         logger.info("Websocket message: "+message);
-        broadcastMessage(message);
+
     }
 
-    private void broadcast(String message) {
+    public void broadcast(Tweet tweet) {
         logger.info("Broadcast called");
-        System.out.println("broadcast message: "+message); // also send response 200
+        logger.info("broadcast message: "+tweet.toString()); // also send response 200
         users.stream().filter(Session::isOpen).forEach(session -> {
             try {
-                session.getRemote().sendString(message);
+                session.getRemote().sendString(tweet.toString());
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -120,17 +120,23 @@ public class WebSocketHandler {
         return result;
     }
 
-    //Sends a message from WS to open sessions
-    public void broadcastMessage(String message) {
-        logger.info("Called broadcastMessage.");
-        userUsernameMap.keySet().stream().filter(Session::isOpen).forEach(session -> {
-            try {
-                session.getRemote().sendString(message);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        });
+    public void place(Tweet tweet, String tweet_id) {
+        this.tweets.put(tweet.getId(), tweet);
+        this.tweet_ids.add(tweet_id);
     }
 
+    private static Map<String, String> getQueryMap(String query)
+    {
+        String[] params = query.split("&");
+        Map<String, String> map = new HashMap<String, String>();
+        for (String param : params)
+        {  String [] p=param.split("=");
+            String name = p[0];
+            if(p.length>1)  {String value = p[1];
+                map.put(name, value);
+            }
+        }
+        return map;
+    }
 
 }

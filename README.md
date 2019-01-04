@@ -7,7 +7,7 @@ For websocket testing consider Chrome plugin Smart Websocket Client.
 
 REST API:
 
-Subscribe to twitter - POST /users/id = make server bind a kafka consumer to tweets1 topic \
+Subscribe to twitter - POST /users/id \
 new user can register using that call.. \ 
 Write a new tweet - POST /tweets JSON Body \
 Read tweets (polling) - GET /tweets/{filter}/latest \
@@ -17,6 +17,32 @@ Requirements:
 
 Exactly once semantics: a tweet is always stored and presented in timelines exactly once. \
 Upon restart/failure clients should not read all the posts from scratch.
+
+```bash
+
+bin\windows\zookeeper-server-start.bat config\zookeeper.properties
+
+bin\windows\kafka-server-start.bat config\server.properties
+make sure to start 2nd broker here (see below)
+
+bin\windows\kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 2 --partitions 1 --topic tweeter2
+
+bin\windows\kafka-console-producer.bat --broker-list localhost:9092 --topic tweeter2
+
+bin\windows\kafka-console-consumer.bat --bootstrap-server localhost:9092 --topic tweeter2 --from-beginning
+
+bin\windows\kafka-topics.bat --describe --zookeeper localhost:2181 --topic tweeter2
+ 
+for 2nd broker duplicate properties file and change:
+cp config/server.properties config/server-1.properties
+config/server-1.properties:
+    broker.id=1
+    listeners=PLAINTEXT://:9093
+    log.dirs=/tmp/kafka-logs-1
+ 
+bin\windows\kafka-server-start.bat config\server-1.properties
+
+```
 
 ```bash
 
@@ -57,22 +83,5 @@ curl -X POST \
   -H 'Cache-Control: no-cache' \
   -H 'Content-Type: application/json'
   
-
-
-bin\windows\zookeeper-server-start.bat config\zookeeper.properties
-
-bin\windows\kafka-server-start.bat config\server.properties
-
-bin\windows\kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 2 --partitions 1 --topic tweeter1
-
-bin\windows\kafka-console-producer.bat --broker-list localhost:9092 --topic tweeter1
-
-bin\windows\kafka-console-consumer.bat --bootstrap-server localhost:9092 --topic tweeter1 --from-beginning
-
-bin\windows\kafka-topics.bat --describe --zookeeper localhost:2181 --topic tweeter1
-
-
-
-
-
 ```
+

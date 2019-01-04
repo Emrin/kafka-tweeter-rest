@@ -3,7 +3,11 @@ package tweeter;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.streams.StreamsBuilder;
+import org.apache.kafka.streams.StreamsConfig;
+import org.apache.kafka.streams.kstream.KStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import spark.Session;
@@ -54,6 +58,21 @@ public class TweeterApp extends AbstractService {
         WebSocketHandler wsh = new WebSocketHandler(consumerWS);
         webSocket("/ws", wsh);
         init();
+
+        //
+        // Kstream push to WS broadcast
+        Properties propsStream = new Properties();
+        propsStream.put(StreamsConfig.APPLICATION_ID_CONFIG, "tweets-stream");
+        propsStream.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        propsStream.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass());
+        propsStream.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, TweetDeserializer.class);
+        final StreamsBuilder builder = new StreamsBuilder();
+//        builder.stream(topic);
+        KStream<String, Tweet> source = builder.stream(topic);
+        source.foreach((String a, Tweet t) -> {
+            wsh.place(t, t.getId());
+        });
+
 
 
         path("/tweets", () -> {
