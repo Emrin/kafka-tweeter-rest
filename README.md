@@ -1,5 +1,6 @@
 # Kafka Rest Tweeter Homework Repository for the MiddleWare Course
 
+TODO : see 09-bigdata 67 for Kstream->stream()->forEach->websock.broadcast()
 
 Requests: below for unix. For windows use postman app.
 
