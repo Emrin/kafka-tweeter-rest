@@ -46,8 +46,9 @@ bin\windows\kafka-topics.bat --describe --zookeeper localhost:2181 --topic tweet
 
 ```bash
 
-1 -- Subscribe a new user
+1 -- Subscribe to tweeter
 
+What does this mean?
  
 2 -- Post a new tweet
 curl -X POST \
@@ -64,17 +65,25 @@ curl -X POST \
       		]
       }'
       
-Response:
+-- Response:
 {
     "status": 200,
     "message": "Tweet Created: [id = d5995e64 ; author = Bob ; location = Florida ; tags = [happy, trees] ; mentions = [@art, @painting]]"
 }
  
 3 -- Read tweets (manual GET)
+
 curl -X GET \
-  http://localhost:4242/tweets/location=Awesomeville&tag=Art&mention=Trees
+  localhost:4242/tweets/tag=trees&location=florida&mention=art
+
+-- Response:
+{
+    "status": 200,
+    "message": "[{\"id\":\"5a65aa1d\",\"author\":\"Bob\",\"location\":\"Florida\",\"tags\":[\"happy\",\"trees\"],\"mentions\":[\"@art\",\"@painting\"]}]"
+}
   
--- WebSocket (Stream)
+4 -- WebSocket (Stream)
+
 curl -X POST \
   http://localhost:4242/tweets/location=Awesomeville&tag=Art&mention=Trees \
   -H 'Cache-Control: no-cache' \

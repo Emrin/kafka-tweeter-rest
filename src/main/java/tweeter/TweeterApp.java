@@ -67,7 +67,6 @@ public class TweeterApp extends AbstractService {
         propsStream.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass());
         propsStream.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, TweetDeserializer.class);
         final StreamsBuilder builder = new StreamsBuilder();
-//        builder.stream(topic);
         KStream<String, Tweet> source = builder.stream(topic);
         source.foreach((String a, Tweet t) -> {
             wsh.place(t, t.getId());
@@ -119,7 +118,7 @@ public class TweeterApp extends AbstractService {
                 }
             });
 
-            // Websocket call: Changes the filter of the web socket.
+            // Websocket modification: Changes the filter of the web socket.
             post("/:filter", (request, response) -> { // /location=Awesomeville&tag=Art&mention=Trees
                 logger.info("Post request with filter -> set filter to web socket handler.");
                 Map<String, String> params = getQueryMap(request.params(":filter"));
@@ -172,12 +171,13 @@ public class TweeterApp extends AbstractService {
             for (int i = 0; i < tweets.size(); i++) {
                 if (tweets.get(tweet_ids.get(i)).filterLoc(location) || tweets.get(tweet_ids.get(i)).filterTag(tag) ||
                         tweets.get(tweet_ids.get(i)).filterMention(mention)) {
-                    result.add(tweets.get(tweet_ids.get(i))); // spaghetti = very much
-                    logger.info("Found filter matching to tweet with id = " + i);
+                    result.add(tweets.get(tweet_ids.get(i))); // spaghetti code = very much
+//                    logger.info("Found filter matching to tweet with id = " + i);
                 }
             }
         }
-//        logger.info("Total size of matching tweets = "+result.size());
+//        if (result.isEmpty()){logger.info("No matching tweets.");}
+//        else{logger.info("Total size of matching tweets = "+(result.size()+1));}
         return result;
     }
 
