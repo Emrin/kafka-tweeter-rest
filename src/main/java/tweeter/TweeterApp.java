@@ -32,7 +32,7 @@ public class TweeterApp extends AbstractService {
     public static void main(String[] args) {
 
         Logger logger = LoggerFactory.getLogger(TweeterApp.class);
-        String topic = "tweets1";
+        String topic = "tweeter2";
         int portNum = 4242;
         HashMap<String, Tweet> tweets = new HashMap<>();
         List<String> tweet_ids = new ArrayList<>();
@@ -177,7 +177,7 @@ public class TweeterApp extends AbstractService {
                 }
             }
         }
-        logger.info("Total size of matching tweets = "+result.size());
+//        logger.info("Total size of matching tweets = "+result.size());
         return result;
     }
 

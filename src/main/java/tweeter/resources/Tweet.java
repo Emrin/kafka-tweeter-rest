@@ -69,15 +69,15 @@ public class Tweet {
     }
 
     public Boolean filterLoc(String filter) {
-        return location.toLowerCase().contains(filter.toLowerCase());
+        return filter != null && location.toLowerCase().contains(filter.toLowerCase());
     }
 
     public Boolean filterTag(String filter) {
-        return String.join(",", tags).toLowerCase().contains(filter.toLowerCase());
+        return filter != null && String.join(",", tags).toLowerCase().contains(filter.toLowerCase());
     }
 
     public Boolean filterMention(String filter) {
-        return String.join(",", mentions).toLowerCase().contains(filter.toLowerCase());
+        return filter != null && String.join(",", mentions).toLowerCase().contains(filter.toLowerCase());
     }
 
 }

@@ -24,16 +24,7 @@ Upon restart/failure clients should not read all the posts from scratch.
 bin\windows\zookeeper-server-start.bat config\zookeeper.properties
 
 bin\windows\kafka-server-start.bat config\server.properties
-make sure to start 2nd broker here (see below)
 
-bin\windows\kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 2 --partitions 1 --topic tweeter2
-
-bin\windows\kafka-console-producer.bat --broker-list localhost:9092 --topic tweeter2
-
-bin\windows\kafka-console-consumer.bat --bootstrap-server localhost:9092 --topic tweeter2 --from-beginning
-
-bin\windows\kafka-topics.bat --describe --zookeeper localhost:2181 --topic tweeter2
- 
 for 2nd broker duplicate properties file and change:
 cp config/server.properties config/server-1.properties
 config/server-1.properties:
@@ -43,17 +34,22 @@ config/server-1.properties:
  
 bin\windows\kafka-server-start.bat config\server-1.properties
 
+bin\windows\kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 2 --partitions 1 --topic tweeter2
+
+bin\windows\kafka-console-producer.bat --broker-list localhost:9092 --topic tweeter2
+
+bin\windows\kafka-console-consumer.bat --bootstrap-server localhost:9092 --topic tweeter2 --from-beginning
+
+bin\windows\kafka-topics.bat --describe --zookeeper localhost:2181 --topic tweeter2
+
 ```
 
 ```bash
 
--- Subscribe a new user
-curl -X POST \
-  http://localhost:4242/users/bobross \
-  -H 'Cache-Control: no-cache' \
-  -H 'Content-Type: application/json'
+1 -- Subscribe a new user
+
  
--- Post a new tweet
+2 -- Post a new tweet
 curl -X POST \
   http://localhost:4242/tweets \
   -H 'Cache-Control: no-cache' \
@@ -71,14 +67,14 @@ curl -X POST \
 Response:
 {
     "status": 200,
-    "message": "Resource Created with id [ed96c993]"
+    "message": "Tweet Created: [id = d5995e64 ; author = Bob ; location = Florida ; tags = [happy, trees] ; mentions = [@art, @painting]]"
 }
  
--- Read tweets (manual GET)
+3 -- Read tweets (manual GET)
 curl -X GET \
   http://localhost:4242/tweets/location=Awesomeville&tag=Art&mention=Trees
   
--- WebSocket
+-- WebSocket (Stream)
 curl -X POST \
   http://localhost:4242/tweets/location=Awesomeville&tag=Art&mention=Trees \
   -H 'Cache-Control: no-cache' \
