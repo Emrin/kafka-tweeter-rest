@@ -1,6 +1,7 @@
 package tweeter;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.Serdes;
@@ -13,10 +14,9 @@ import org.slf4j.LoggerFactory;
 import spark.Session;
 import tweeter.api.commons.AbstractService;
 import tweeter.api.commons.Resp;
-import tweeter.dao.Consumer;
-import tweeter.dao.Producer;
-import tweeter.dao.WebSocketHandler;
+import tweeter.dao.*;
 import tweeter.resources.Tweet;
+import tweeter.resources.User;
 import tweeter.resources.serizalization.TweetDeserializer;
 
 import java.time.Duration;
@@ -33,7 +33,8 @@ public class TweeterApp extends AbstractService {
 
         Logger logger = LoggerFactory.getLogger(TweeterApp.class);
         String topic = "tweeter2";
-        int portNum = 4242;
+        String topicUsers = "users2";
+        int portNum = 4242; // for web requests.
         HashMap<String, Tweet> tweets = new HashMap<>();
         List<String> tweet_ids = new ArrayList<>();
         List<Session> users = new ArrayList<>();
@@ -42,9 +43,11 @@ public class TweeterApp extends AbstractService {
 
         // Producer
         Producer producer = new Producer(topic);
+        ProducerUsers producerUsers = new ProducerUsers(topicUsers);
 
         // Consumer
         Consumer consumer = new Consumer(topic);
+        ConsumerUsers consumerUsers = new ConsumerUsers(topicUsers);
 
         // ConsumerWS
         Properties props = new Properties();
@@ -59,7 +62,7 @@ public class TweeterApp extends AbstractService {
         webSocket("/ws", wsh);
         init();
 
-        //
+
         // Kstream push to WS broadcast
         Properties propsStream = new Properties();
         propsStream.put(StreamsConfig.APPLICATION_ID_CONFIG, "tweets-stream");
@@ -72,7 +75,28 @@ public class TweeterApp extends AbstractService {
             wsh.place(t, t.getId());
         });
 
+        try{ // this try catch fixes a bug that occurs on first ever /users POST call.
+            Thread.sleep(500);
+            consumerUsers.poll("x");
+        }catch (Exception e) {
+            logger.info("Exception "+e);
+        }
 
+        path("/users", () -> {
+            before("/*", (q, a) -> logger.info("Api call to /users."));
+
+            post("/:username", (request, response) -> {
+                // Check if user exists in users.
+                String username = request.params(":username");
+                if (consumerUsers.poll(username)) {
+                    // If user already exists.
+                    return gson.toJson(new Resp(CLIENT_ERROR + 9, "User already exists."));
+                }else { // Push new user.
+                    User user = producerUsers.register(gson.fromJson(request.body(), User.class), username);
+                    return gson.toJson(new Resp(SUCCESS, "New user added: " + user.toString()));
+                }
+            });
+        });
 
         path("/tweets", () -> {
             before("/*", (q, a) -> logger.info("Received api call to /tweets"));

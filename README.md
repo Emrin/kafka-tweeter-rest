@@ -9,7 +9,7 @@ For websocket testing consider Chrome plugin Smart Websocket Client.
 REST API:
 
 Subscribe to twitter - POST /users/id \
-new user can register using that call.. \ 
+new user can register using that call.. \
 Write a new tweet - POST /tweets JSON Body \
 Read tweets (polling) - GET /tweets/{filter}/latest \
 Server-Sent Event (streaming) - POST /tweets/{filter} JSONBody [List of tweets]
@@ -35,6 +35,7 @@ config/server-1.properties:
 bin\windows\kafka-server-start.bat config\server-1.properties
 
 bin\windows\kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 2 --partitions 1 --topic tweeter2
+bin\windows\kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 2 --partitions 1 --topic users
 
 bin\windows\kafka-console-producer.bat --broker-list localhost:9092 --topic tweeter2
 
@@ -48,9 +49,38 @@ bin\windows\kafka-topics.bat --describe --zookeeper localhost:2181 --topic tweet
 
 1 -- Subscribe to tweeter
 
-What does this mean?
- 
+So a new user will POST /users/hisName
+And push himself into kafka users topic if he's not there.
+
+curl -X POST \
+  http://localhost:4242/users/wick \
+  -H 'Cache-Control: no-cache' \
+  -H 'Content-Type: application/json' \
+  -d '{	
+      	"id" : "John",
+      	"fullname" : "John Wick",
+        	"email" : "john@x.com",
+        	"age" : "25"
+      }'
+
+-- Response
+{
+    "status":200,
+    "message":"New user added: 
+    {
+    \"fullname\":\"John Wick\",
+    \"id\":\"wick\",
+    \"email\":\"wick@x.com\",
+    \"age\":\"25\"
+    }"
+}
+
+-- In kafka topic:
+{"id":"89957326","fullname":"John Wick","email":"john@x.com","age":"25"}
+
 2 -- Post a new tweet
+Post the tweet if author is in users topic only.
+
 curl -X POST \
   http://localhost:4242/tweets \
   -H 'Cache-Control: no-cache' \
@@ -72,6 +102,7 @@ curl -X POST \
 }
  
 3 -- Read tweets (manual GET)
+Filter can be in any order, as long as structure is respected.
 
 curl -X GET \
   localhost:4242/tweets/tag=trees&location=florida&mention=art
@@ -82,10 +113,20 @@ curl -X GET \
     "message": "[{\"id\":\"5a65aa1d\",\"author\":\"Bob\",\"location\":\"Florida\",\"tags\":[\"happy\",\"trees\"],\"mentions\":[\"@art\",\"@painting\"]}]"
 }
   
-4 -- WebSocket (Stream)
+4 -- WebSocket + Kafka Stream
+Not sure about the requirement here.
+Streaming is done with a websocket.
+And to connect to a websocket you need to visit ws://localhost
+So why do we need to make a POST request?
+Perhaps to update the stream filter.
 
+Connect to websocket with this:
+ws://localhost:4242/ws
+(use Smart Websocket Client from Chrome)
+
+Then use this command to change your filter.
 curl -X POST \
-  http://localhost:4242/tweets/location=Awesomeville&tag=Art&mention=Trees \
+  http://localhost:4242/tweets/tags=Trees&mentions=@art \
   -H 'Cache-Control: no-cache' \
   -H 'Content-Type: application/json'
   
