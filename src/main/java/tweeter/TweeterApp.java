@@ -32,7 +32,7 @@ public class TweeterApp extends AbstractService {
     public static void main(String[] args) {
 
         Logger logger = LoggerFactory.getLogger(TweeterApp.class);
-        String topic = "tweeter2";
+        String topic = "tweeter3";
         String topicUsers = "users2";
         int portNum = 4242; // for web requests.
         HashMap<String, Tweet> tweets = new HashMap<>();
@@ -103,15 +103,23 @@ public class TweeterApp extends AbstractService {
 
             // User posts a tweet.
             post("", (request, response) -> { // User posted a new tweet
+                logger.info("Post requesst.");
                 response.type("application/json");
                 response.status(SUCCESS);
                 String body = request.body();
                 try {
                     if (body != null && !body.isEmpty()) { // maybe check form with regex
-                        Tweet thisTweet = producer.place(gson.fromJson(request.body(), Tweet.class));
-                        tweets.put(thisTweet.getId(), thisTweet);
-                        tweet_ids.add(thisTweet.getId());
-                        return gson.toJson(new Resp(SUCCESS, "Tweet Created: [" + thisTweet.toString() + "]"));
+                        Tweet thisTweet = gson.fromJson(request.body(), Tweet.class);
+                        // Check if user is registered.
+                        if(consumerUsers.poll(thisTweet.getAuthor())) {
+                            producer.place(thisTweet);
+                            tweets.put(thisTweet.getId(), thisTweet);
+                            tweet_ids.add(thisTweet.getId());
+                            return gson.toJson(new Resp(SUCCESS, "Tweet Created: [" + thisTweet.toString() + "]"));
+                        }
+                        else{
+                            return gson.toJson(new Resp(CLIENT_ERROR + 9, "Author doesn't exist."));
+                        }
                     } else
                         return gson.toJson(new Resp(400, "Bad Request"));
                 } catch (Exception e) {
@@ -127,7 +135,7 @@ public class TweeterApp extends AbstractService {
                 String location = (String)params.get("location");
                 String tag = (String)params.get("tag");
                 String mention = (String)params.get("mention");
-                logger.info("queryParamsMap.keys() = "+params.keySet() + "\nqueryParamsMap.values() = "+params.values());
+                logger.info("\nqueryParamsMap.keys() = "+params.keySet() + "\nqueryParamsMap.values() = "+params.values());
                 logger.info("loc : "+location+" , tag : "+tag+" , mention : "+mention);
 
                 // Get list of tweets that have matching args.

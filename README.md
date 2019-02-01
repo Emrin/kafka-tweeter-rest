@@ -34,12 +34,13 @@ config/server-1.properties:
  
 bin\windows\kafka-server-start.bat config\server-1.properties
 
-bin\windows\kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 2 --partitions 1 --topic tweeter2
-bin\windows\kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 2 --partitions 1 --topic users
+bin\windows\kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 2 --partitions 1 --topic tweeter3
+bin\windows\kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 2 --partitions 1 --topic users2
 
 bin\windows\kafka-console-producer.bat --broker-list localhost:9092 --topic tweeter2
 
-bin\windows\kafka-console-consumer.bat --bootstrap-server localhost:9092 --topic tweeter2 --from-beginning
+bin\windows\kafka-console-consumer.bat --bootstrap-server localhost:9092 --topic tweeter3 --from-beginning
+bin\windows\kafka-console-consumer.bat --bootstrap-server localhost:9092 --topic users2 --from-beginning
 
 bin\windows\kafka-topics.bat --describe --zookeeper localhost:2181 --topic tweeter2
 
@@ -56,11 +57,10 @@ curl -X POST \
   http://localhost:4242/users/wick \
   -H 'Cache-Control: no-cache' \
   -H 'Content-Type: application/json' \
-  -d '{	
-      	"id" : "John",
-      	"fullname" : "John Wick",
-        	"email" : "john@x.com",
-        	"age" : "25"
+  -d '{
+      "fullname" : "John Wick",
+      "email" : "john@x.com",
+      "age" : "25"
       }'
 
 -- Response
@@ -75,11 +75,36 @@ curl -X POST \
     }"
 }
 
+Second time:
+{"status":409,"message":"User already exists."}
+
 -- In kafka topic:
-{"id":"89957326","fullname":"John Wick","email":"john@x.com","age":"25"}
+{
+    "id":"wick","fullname":"John Wick","email":"john@x.com","age":"25"
+}
 
 2 -- Post a new tweet
 Post the tweet if author is in users topic only.
+
+curl -X POST \
+  http://localhost:4242/tweets \
+  -H 'Cache-Control: no-cache' \
+  -H 'Content-Type: application/json' \
+  -d '{	"author" : "wick",
+        "location" : "Hell",
+        "tags": [
+                "token", "things"
+                ],
+        "mentions" : [
+                "@award", "@chase"
+                ]
+      }'
+
+-- Response
+{
+    "status": 200,
+    "message": "Tweet Created: [id = 91d500ba ; author = wick ; location = Hell ; tags = [token, things] ; mentions = [@award, @chase]]"
+}
 
 curl -X POST \
   http://localhost:4242/tweets \
@@ -97,8 +122,8 @@ curl -X POST \
       
 -- Response:
 {
-    "status": 200,
-    "message": "Tweet Created: [id = d5995e64 ; author = Bob ; location = Florida ; tags = [happy, trees] ; mentions = [@art, @painting]]"
+    "status": 409,
+    "message": "Author doesn't exist."
 }
  
 3 -- Read tweets (manual GET)

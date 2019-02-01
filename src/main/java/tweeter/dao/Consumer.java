@@ -37,7 +37,7 @@ public class Consumer {
             Set<TopicPartition> assignment = consumer.assignment();
             consumer.seekToBeginning(assignment);
             while (true) {
-                logger.info("Polling...");
+                logger.info("Polling tweets...");
                 poll(consumer);
                 try {
                     Thread.sleep(10000);
@@ -50,6 +50,11 @@ public class Consumer {
     }
 
     // Methods
+
+    // Fill the initial tweets hashmap with previous tweets inside topics.
+    public void init() {
+
+    }
 
     // Polling the consumer to see if new tweets are present.
     public void poll(KafkaConsumer<String, Tweet> consumer) {
