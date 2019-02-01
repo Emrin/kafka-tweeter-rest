@@ -32,23 +32,11 @@ public class Consumer {
         consumer = new KafkaConsumer<>(propsCons);
         consumer.subscribe(Collections.singletonList(topic));
 
-        // Fill the initial tweets hashmap with previous tweets inside topics.
         Set<TopicPartition> assignment = consumer.assignment();
         consumer.seekToBeginning(assignment);
         consumer.poll(Duration.ofMillis(100));
 
-//        ConsumerRecords<String, Tweet> tweets = consumer.poll(Duration.ofMillis(100));
-//        logger.info("@@@@@@@@@@@@@@@aaaaaaaaaaaaaaaaaaaaaaaaa@@@@@@@@@@@@@@@@@@@@@@");
-//        for (ConsumerRecord<String, Tweet> tweet : tweets) {
-//            tweetsMap.put(tweet.key(), tweet.value());
-//            tweetIds.add(tweet.key());
-//            logger.info("Added tweet to tweetMap");
-//            logger.info("@@@@@@@@@@@@@bbbbbbbbbbbbbbbbbbbbbbbb@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-//        }
-//        logger.info("@@@@@@@@@@@@@@cccccccccccccccccccccccccccc@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-
         Thread t = new Thread(() -> {
-//            initMap();
             while (true) {
                 logger.info("Polling tweets...");
                 poll();

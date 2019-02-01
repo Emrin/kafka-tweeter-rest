@@ -3,6 +3,7 @@ package tweeter.dao;
 import com.google.gson.Gson;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.TopicPartition;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
@@ -14,98 +15,113 @@ import tweeter.resources.Tweet;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 
 @WebSocket
 public class WebSocketHandler {
     private Logger logger = LoggerFactory.getLogger(WebSocketHandler.class);
-    private Gson gson = new Gson();
     private HashMap<String, Tweet> tweets = new HashMap<>();
-    List<String> tweet_ids = new ArrayList<>();
-    private String location, tag, mention; // filters
+    private List<String> tweet_ids = new ArrayList<>();
     private final KafkaConsumer<String, Tweet> consumerWS;
-    private static List<Session> users = new ArrayList<>();
-    private static List<List<String>> filters = new ArrayList<>();
-    static Map<Session, List<String>> userFilterMap = new ConcurrentHashMap<>(); // map users to their filters
-
+    // for each user: [location, tag, mention] filters.
+    private static Map<Session, List<String>> userFilterMap = new ConcurrentHashMap<>(); // map users to their filters
+    // todo add user progress in the hashmap to see where user left off. nah.
     public WebSocketHandler(KafkaConsumer<String, Tweet> consumerWS) {
         this.consumerWS = consumerWS;
-    }
 
-    // Getters and setters
-    public String getLocation() {
-        return location;
-    }
-    public void setLocation(String location) {
-        this.location = location;
-    }
-
-    public String getTag() {
-        return tag;
-    }
-    public void setTag(String tag) {
-        this.tag = tag;
-    }
-
-    public String getMention() {
-        return mention;
-    }
-    public void setMention(String mention) {
-        this.mention = mention;
+        Thread t = new Thread(() -> {
+            consumerWS.poll(Duration.ofMillis(100));
+            Set<TopicPartition> assignment = consumerWS.assignment();
+            consumerWS.seekToBeginning(assignment);
+            while (true) {
+                logger.info("WS polling...");
+                poll();
+                try {
+                    Thread.sleep(10000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        t.start();
     }
 
     public void poll() {
         ConsumerRecords<String, Tweet> tweets = this.consumerWS.poll(Duration.ofMillis(500));
         tweets.forEach(t -> this.broadcast(t.value())); // value is tweet
-        // broadcast
     }
 
     @OnWebSocketConnect
     public void onConnect(Session user) throws Exception {
-        if (users.contains(user)){
-            logger.info("A user rejoined the chat");
-            // Serve user what hes looking for
-            List<Tweet> serve = matchmaker(tweets, tweet_ids, location, tag, mention);
-            serve.forEach(this::broadcast);
-        } else {
-            users.add(user);
-            logger.info("A user joined the chat");
-        }
+        List<String> filter = Arrays.asList(null, null, null);
+        userFilterMap.put(user, filter);
+        logger.info("A user joined.");
+        send(user);
     }
 
     @OnWebSocketClose
     public void onClose(Session user, int statusCode, String reason) {
-        users.remove(user);
-        logger.info("A user left the chat");
+        userFilterMap.remove(user);
+        logger.info("A user left.");
     }
 
-    @OnWebSocketMessage
+    // Upon receiving a message by the user, change his personal filter.
+    @OnWebSocketMessage // works
     public void onMessage(Session user, String message) {
         logger.info("Session user: "+user.toString());
         logger.info("Websocket message: "+message);
-
+//        int indexOfUser = users.indexOf(user);
+        Map<String, String> params = getQueryMap(message);
+        String location = (String)params.get("location");
+        String tag = (String)params.get("tag");
+        String mention = (String)params.get("mention");
+        logger.info("queryParamsMap.keys() = "+params.keySet() + "\nqueryParamsMap.values() = "+params.values());
+        logger.info("loc : "+location+" , tag : "+tag+" , mention : "+mention);
+        List<String> newFilter = Arrays.asList(location, tag, mention);
+        userFilterMap.replace(user, newFilter);
+        send(user);
     }
 
-    public void broadcast(Tweet tweet) {
+    // Broadcast new tweets, and send tweets for new connections.
+    private void broadcast(Tweet tweet) { // works
         logger.info("Broadcast called");
         logger.info("broadcast message: "+tweet.toString()); // also send response 200
-        users.stream().filter(Session::isOpen).forEach(session -> {
+        List<Session> usersList = new ArrayList<Session>(userFilterMap.keySet());
+        usersList.stream().filter(Session::isOpen).forEach(userSession -> {
             try {
-                session.getRemote().sendString(tweet.toString());
+                // for every connected user,
+                // if this tweet is what the user is looking for
+                logger.info("Attempting to broadcast.");
+                if (tweet.filterLoc(userFilterMap.get(userSession).get(0)) ||
+                    tweet.filterMention(userFilterMap.get(userSession).get(1)) ||
+                    tweet.filterTag(userFilterMap.get(userSession).get(2))){
+                    userSession.getRemote().sendString(tweet.toString()); // send.
+                    logger.info("Broadcast successful.");
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             }
         });
     }
 
+    // Send all tweets to this user, used for when he connects.
+    private void send(Session user){ // todo fix
+        List<Tweet> serving = matchmaker(tweets, tweet_ids, userFilterMap.get(user).get(0),
+                userFilterMap.get(user).get(1), userFilterMap.get(user).get(2)); // userFilterMap's value is the filter array.
+        for (Tweet tweet : serving){
+            try {
+                user.getRemote().sendString(tweet.toString());
+            } catch (Exception e){
+                logger.info(e.toString());
+            }
+        }
+    }
+
     // Iterate over all tweets and if one of them has a matching arg, add it to the result.
-    public List<Tweet> matchmaker(HashMap<String, Tweet> tweets, List<String> tweet_ids, String location,
-                                          String tag, String mention) {
+    private List<Tweet> matchmaker(HashMap<String, Tweet> tweets, List<String> tweet_ids, String location,
+                                   String tag, String mention) {
         List<Tweet> result = new ArrayList<Tweet>();
         if (!tweets.isEmpty()) {
             for (int i = 0; i < tweets.size(); i++) {
@@ -120,13 +136,14 @@ public class WebSocketHandler {
         return result;
     }
 
-    public void place(Tweet tweet, String tweet_id) {
+    public void addTweet(Tweet tweet, String tweet_id) {
         this.tweets.put(tweet.getId(), tweet);
         this.tweet_ids.add(tweet_id);
+        // todo broadcast new tweets
+        broadcast(tweet);
     }
 
-    private static Map<String, String> getQueryMap(String query)
-    {
+    private static Map<String, String> getQueryMap(String query) {
         String[] params = query.split("&");
         Map<String, String> map = new HashMap<String, String>();
         for (String param : params)

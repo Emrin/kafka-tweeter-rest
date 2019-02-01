@@ -159,18 +159,14 @@ curl -X GET \
 Not sure about the requirement here.
 Streaming is done with a websocket.
 And to connect to a websocket you need to visit ws://localhost
-So why do we need to make a POST request?
-Perhaps to update the stream filter.
 
 Connect to websocket with this:
 ws://localhost:4242/ws
 (use Smart Websocket Client from Chrome)
 
-Then use this command to change your filter.
-curl -X POST \
-  http://localhost:4242/tweets/tags=Trees&mentions=@art \
-  -H 'Cache-Control: no-cache' \
-  -H 'Content-Type: application/json'
+To change your session filter just send
+a message such as tags=candy&mentions=rabbit
+through the websocket.
   
 ```
 
