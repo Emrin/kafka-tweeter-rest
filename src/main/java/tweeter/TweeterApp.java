@@ -35,8 +35,8 @@ public class TweeterApp extends AbstractService {
         String topic = "tweeter3";
         String topicUsers = "users2";
         int portNum = 4242; // for web requests.
-        HashMap<String, Tweet> tweets = new HashMap<>();
-        List<String> tweet_ids = new ArrayList<>();
+//        HashMap<String, Tweet> tweets = new HashMap<>();
+//        List<String> tweet_ids = new ArrayList<>();
         List<Session> users = new ArrayList<>();
 
         port(portNum);
@@ -75,12 +75,17 @@ public class TweeterApp extends AbstractService {
             wsh.place(t, t.getId());
         });
 
-        try{ // this try catch fixes a bug that occurs on first ever /users POST call.
+        try{ // this try catch fixes a bug that occurs on first calls.
             Thread.sleep(500);
             consumerUsers.poll("x");
+            consumer.pollInitial();
         }catch (Exception e) {
             logger.info("Exception "+e);
         }
+
+        // Initialize the tweets hashmap with already-existing tweets from topic.
+        HashMap<String, Tweet> tweets = consumer.getTweetsMapMap();
+        List<String> tweet_ids = consumer.getTweetIds();
 
         path("/users", () -> {
             before("/*", (q, a) -> logger.info("Api call to /users."));
@@ -129,7 +134,19 @@ public class TweeterApp extends AbstractService {
             });
 
             // User GET request.
+            get("", (request, response) -> {
+                List<Tweet> mapTweets = new ArrayList<>(tweets.values());
+                logger.info("Get request with no filter.");
+                return gson.toJson(new Resp(SUCCESS, gson.toJson(tweets.values())));
+            });
+
+            // GET request with filter.
             get("/:filter", (request, response) -> { // /location=Awesomeville&tag=Art&mention=Trees
+                // If filter is empty, return everything.
+                if (request.params(":filter").isEmpty()) {
+                    return gson.toJson(new Resp(SUCCESS, gson.toJson(tweets.values())));
+                }
+
                 logger.info("Get request with filter.");
                 Map<String, String> params = getQueryMap(request.params(":filter"));
                 String location = (String)params.get("location");

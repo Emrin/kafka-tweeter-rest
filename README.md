@@ -130,12 +130,29 @@ curl -X POST \
 Filter can be in any order, as long as structure is respected.
 
 curl -X GET \
-  localhost:4242/tweets/tag=trees&location=florida&mention=art
+    localhost:4242/tweets/location=hell
 
 -- Response:
 {
-    "status": 200,
-    "message": "[{\"id\":\"5a65aa1d\",\"author\":\"Bob\",\"location\":\"Florida\",\"tags\":[\"happy\",\"trees\"],\"mentions\":[\"@art\",\"@painting\"]}]"
+    "status":200,
+    "message":"[{\"id\":\"bbd2cee6\",\"author\":\"wick\",\"location\":\"Hell\",\"tags\":[\"token\",\"things\"],\"mentions\":[\"@award\",\"@chase\"]}]"
+}
+
+curl -X GET \
+    localhost:4242/tweets/location=unknown
+
+-- Response:
+{
+    "status":404,
+    "message":"Tweet not found"
+}
+
+curl -X GET \
+    localhost:4242/tweets/mention=space
+
+{
+    "status":200,
+    "message":"[{\"id\":\"663a7bd9\",\"author\":\"rick\",\"location\":\"Space\",\"tags\":[\"interdimensional\",\"cable\"],\"mentions\":[\"@space\",\"@time\"]}]"
 }
   
 4 -- WebSocket + Kafka Stream

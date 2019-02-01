@@ -1,6 +1,7 @@
 package tweeter.dao;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
@@ -11,15 +12,14 @@ import tweeter.resources.Tweet;
 import tweeter.resources.serizalization.TweetDeserializer;
 
 import java.time.Duration;
-import java.util.Collections;
-import java.util.Properties;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 public class Consumer {
     // Args
     private Logger logger = LoggerFactory.getLogger(Consumer.class);
     private KafkaConsumer<String, Tweet> consumer;
+    private HashMap<String, Tweet> tweetsMap = new HashMap<>();
+    private List<String> tweetIds = new ArrayList<>();
 
     // Constructor
     public Consumer(String topic){
@@ -32,13 +32,26 @@ public class Consumer {
         consumer = new KafkaConsumer<>(propsCons);
         consumer.subscribe(Collections.singletonList(topic));
 
+        // Fill the initial tweets hashmap with previous tweets inside topics.
+        Set<TopicPartition> assignment = consumer.assignment();
+        consumer.seekToBeginning(assignment);
+        consumer.poll(Duration.ofMillis(100));
+
+//        ConsumerRecords<String, Tweet> tweets = consumer.poll(Duration.ofMillis(100));
+//        logger.info("@@@@@@@@@@@@@@@aaaaaaaaaaaaaaaaaaaaaaaaa@@@@@@@@@@@@@@@@@@@@@@");
+//        for (ConsumerRecord<String, Tweet> tweet : tweets) {
+//            tweetsMap.put(tweet.key(), tweet.value());
+//            tweetIds.add(tweet.key());
+//            logger.info("Added tweet to tweetMap");
+//            logger.info("@@@@@@@@@@@@@bbbbbbbbbbbbbbbbbbbbbbbb@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+//        }
+//        logger.info("@@@@@@@@@@@@@@cccccccccccccccccccccccccccc@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+
         Thread t = new Thread(() -> {
-            consumer.poll(Duration.ofMillis(100));
-            Set<TopicPartition> assignment = consumer.assignment();
-            consumer.seekToBeginning(assignment);
+//            initMap();
             while (true) {
                 logger.info("Polling tweets...");
-                poll(consumer);
+                poll();
                 try {
                     Thread.sleep(10000);
                 } catch (InterruptedException e) {
@@ -51,16 +64,34 @@ public class Consumer {
 
     // Methods
 
-    // Fill the initial tweets hashmap with previous tweets inside topics.
-    public void init() {
+    public HashMap<String, Tweet> getTweetsMapMap(){
+        return tweetsMap;
+    }
 
+    public List<String> getTweetIds(){
+        return tweetIds;
     }
 
     // Polling the consumer to see if new tweets are present.
-    public void poll(KafkaConsumer<String, Tweet> consumer) {
+    public void poll() {
         ConsumerRecords<String, Tweet> newTweets = consumer.poll(Duration.ofMillis(500));
+        for (ConsumerRecord<String, Tweet> tweet : newTweets){
+            tweetsMap.put(tweet.key(), tweet.value());
+            tweetIds.add(tweet.key());
+        }
         System.out.println("Polled "+newTweets.count()+" new tweets.");
     }
 
+    public void pollInitial() {
+        Set<TopicPartition> assignment = consumer.assignment();
+        consumer.seekToBeginning(assignment);
+        ConsumerRecords<String, Tweet> newTweets = consumer.poll(Duration.ofMillis(100));
+        for (ConsumerRecord<String, Tweet> tweet : newTweets){
+            System.out.println("Adding saved tweet.");
+            tweetsMap.put(tweet.key(), tweet.value());
+            tweetIds.add(tweet.key());
+        }
+        System.out.println("Polled "+newTweets.count()+" new tweets.");
+    }
 
 }
