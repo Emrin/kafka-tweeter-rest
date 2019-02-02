@@ -167,6 +167,11 @@ ws://localhost:4242/ws
 To change your session filter just send
 a message such as tags=candy&mentions=rabbit
 through the websocket.
-  
+
+On connection, user gets all tweets.
+When he sends a filter, he gets all corresponding tweets.
+Once a tweet is published, he gets it if it passes his filter.
+
+
 ```
 

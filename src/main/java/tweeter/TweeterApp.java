@@ -35,7 +35,7 @@ public class TweeterApp extends AbstractService {
     public static void main(String[] args) {
 
         Logger logger = LoggerFactory.getLogger(TweeterApp.class);
-        String topic = "tweeter5"; // use 3
+        String topic = "tweeter3";
         String topicUsers = "users2";
         int portNum = 4242; // for web requests.
 //        HashMap<String, Tweet> tweets = new HashMap<>();
