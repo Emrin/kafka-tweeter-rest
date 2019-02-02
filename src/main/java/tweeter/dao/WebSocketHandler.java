@@ -32,7 +32,7 @@ public class WebSocketHandler {
         this.consumerWS = consumerWS;
 
         Thread t = new Thread(() -> {
-            consumerWS.poll(Duration.ofMillis(100));
+            consumerWS.poll(Duration.ofMillis(500));
             Set<TopicPartition> assignment = consumerWS.assignment();
             consumerWS.seekToBeginning(assignment);
             while (true) {
@@ -58,7 +58,7 @@ public class WebSocketHandler {
         List<String> filter = Arrays.asList(null, null, null);
         userFilterMap.put(user, filter);
         logger.info("A user joined.");
-        send(user);
+        sendAll(user);
     }
 
     @OnWebSocketClose
@@ -68,7 +68,7 @@ public class WebSocketHandler {
     }
 
     // Upon receiving a message by the user, change his personal filter.
-    @OnWebSocketMessage // works
+    @OnWebSocketMessage
     public void onMessage(Session user, String message) {
         logger.info("Session user: "+user.toString());
         logger.info("Websocket message: "+message);
@@ -81,7 +81,8 @@ public class WebSocketHandler {
         logger.info("loc : "+location+" , tag : "+tag+" , mention : "+mention);
         List<String> newFilter = Arrays.asList(location, tag, mention);
         userFilterMap.replace(user, newFilter);
-        send(user);
+        System.out.println("new filter for user = "+userFilterMap.get(user).toString());
+        refresh(user);
     }
 
     // Broadcast new tweets, and send tweets for new connections.
@@ -94,9 +95,9 @@ public class WebSocketHandler {
                 // for every connected user,
                 // if this tweet is what the user is looking for
                 logger.info("Attempting to broadcast.");
-                if (tweet.filterLoc(userFilterMap.get(userSession).get(0)) ||
-                    tweet.filterMention(userFilterMap.get(userSession).get(1)) ||
-                    tweet.filterTag(userFilterMap.get(userSession).get(2))){
+                if (tweet.filterLoc(userFilterMap.get(userSession).get(0)) || // loc, tag, mention
+                    tweet.filterMention(userFilterMap.get(userSession).get(2)) ||
+                    tweet.filterTag(userFilterMap.get(userSession).get(1))){
                     userSession.getRemote().sendString(tweet.toString()); // send.
                     logger.info("Broadcast successful.");
                 }
@@ -106,13 +107,26 @@ public class WebSocketHandler {
         });
     }
 
-    // Send all tweets to this user, used for when he connects.
-    private void send(Session user){ // todo fix
+    // Send ALL tweets to this user, used for when he connects.
+    private void sendAll(Session user){
+        for (Tweet tweet : tweets.values()){
+            try {
+                user.getRemote().sendString(tweet.toString());
+                logger.info("Sent message to user.");
+            } catch (Exception e){
+                logger.info(e.toString());
+            }
+        }
+    }
+
+    private void refresh(Session user){
         List<Tweet> serving = matchmaker(tweets, tweet_ids, userFilterMap.get(user).get(0),
                 userFilterMap.get(user).get(1), userFilterMap.get(user).get(2)); // userFilterMap's value is the filter array.
+        logger.info("serving.size = "+serving.size());
         for (Tweet tweet : serving){
             try {
                 user.getRemote().sendString(tweet.toString());
+                logger.info("Sent message to user.");
             } catch (Exception e){
                 logger.info(e.toString());
             }
